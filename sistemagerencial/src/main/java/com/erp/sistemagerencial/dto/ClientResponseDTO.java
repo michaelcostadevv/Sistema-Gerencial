@@ -1,28 +1,17 @@
 package com.erp.sistemagerencial.dto;
 
-import com.erp.sistemagerencial.model.Client;
+import com.erp.sistemagerencial.entity.Client;
 
-public class ClientResponseDTO {
+// O que a API DEVOLVE. Escolhemos exatamente quais campos expor.
+public record ClientResponseDTO(Long id, String name, String cpfCnpj, String email, String phone) {
 
-    private Long id;
-    private String name;
-    private String cpfCnpj;
-    private String email;
-    private String phone;
-
-    // Construtor que converte a Entidade do banco para o DTO de resposta
-    public ClientResponseDTO(Client client) {
-        this.id = client.getId();
-        this.name = client.getName();
-        this.cpfCnpj = client.getCpfCnpj();
-        this.email = client.getEmail();
-        this.phone = client.getPhone();
+    // Converte a Entidade do banco para o DTO de resposta
+    public static ClientResponseDTO from(Client client) {
+        return new ClientResponseDTO(
+                client.getId(),
+                client.getName(),
+                client.getCpfCnpj(),
+                client.getEmail(),
+                client.getPhone());
     }
-
-    // Getters
-    public Long getId() { return id; }
-    public String getName() { return name; }
-    public String getCpfCnpj() { return cpfCnpj; }
-    public String getEmail() { return email; }
-    public String getPhone() { return phone; }
 }

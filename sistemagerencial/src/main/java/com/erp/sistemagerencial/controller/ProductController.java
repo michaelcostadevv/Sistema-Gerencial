@@ -1,31 +1,42 @@
 package com.erp.sistemagerencial.controller;
 
-import com.erp.sistemagerencial.model.Product;
-import com.erp.sistemagerencial.repository.ProductRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.erp.sistemagerencial.dto.ProductRequestDTO;
+import com.erp.sistemagerencial.dto.ProductResponseDTO;
+import com.erp.sistemagerencial.service.ProductService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.net.URI;
 import java.util.List;
 
+// Rota no plural (/api/products), seguindo a convenção REST e as outras rotas da API.
 @RestController
-@RequestMapping ("/api/product")
+@RequestMapping("/api/products")
 public class ProductController {
 
-    @Autowired
-    private ProductRepository productRepository;
+    private final ProductService productService;
 
-    // 1. Endpoint para Listar Todos os Produtos (GET)
-    @GetMapping
-    public List<Product> listAll() {
-        return productRepository.findAll();
+    public ProductController(ProductService productService) {
+        this.productService = productService;
     }
 
-    // 2. Endpoint para Cadastrar um Novo Produto (POST)
-    @PostMapping
-    public ResponseEntity<Product> criarProduto(@RequestBody Product product) {
-        Product produtoSalvo = productRepository.save(product);
+    @GetMapping
+    public List<ProductResponseDTO> findAll() {
+        return productService.findAll();
+    }
 
-        return ResponseEntity.ok(produtoSalvo);
+    @GetMapping("/{id}")
+    public ProductResponseDTO findById(@PathVariable Long id) {
+        return productService.findById(id);
+    }
+
+    @PostMapping
+    public ResponseEntity<ProductResponseDTO> create(@RequestBody @Valid ProductRequestDTO dto) {
+        ProductResponseDTO created = productService.create(dto);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}").buildAndExpand(created.id()).toUri();
+        return ResponseEntity.created(location).body(created);
     }
 }

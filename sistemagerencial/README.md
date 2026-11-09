@@ -1,53 +1,131 @@
-🚀 Sistema Gerencial (ERP Backend)
-API REST desenvolvida em Spring Boot para a gestão de um ERP comercial, focando em boas práticas de arquitetura, validações robustas, separação de responsabilidades com DTOs e segurança de dados.
+# Sistema Gerencial (ERP Backend)
 
-🛠️ Tecnologias e Ferramentas Utilizadas
-Java 21
+API REST em Spring Boot para um ERP comercial: cadastro de **clientes**, **produtos** e **pedidos** com cálculo de total e baixa de estoque.
 
-Spring Boot 4.x (Web, Data JPA, Validation)
+## Tecnologias
 
-Hibernate ORM
+- Java 21 (records, `Stream.toList()`)
+- Spring Boot 4 (Web MVC, Data JPA, Validation)
+- Hibernate / JPA
+- PostgreSQL (produção) e H2 em memória (testes)
+- Lombok
+- JUnit 5, Mockito, AssertJ, MockMvc
+- Maven
 
-PostgreSQL (Base de dados relacional)
+## Arquitetura
 
-Lombok (Redução de código boilerplate)
+```
+Controller  ->  Service  ->  Repository  ->  Banco
+   (HTTP)     (regras de     (Spring Data
+              negócio,         JPA)
+            @Transactional)
+```
 
-Maven (Gestão de dependências)
+- **Controller**: só lida com HTTP. Recebe DTOs, valida com `@Valid` e delega ao Service.
+- **Service**: regras de negócio e controle de transação (`@Transactional`).
+- **Repository**: acesso a dados com Spring Data JPA.
+- **DTOs (records)**: a API nunca expõe nem recebe as entidades diretamente.
+- **GlobalExceptionHandler** (`@RestControllerAdvice`): todos os erros saem no mesmo formato JSON e com o status HTTP correto.
 
-🏛️ Arquitetura e Boas Práticas
-DTOs (Data Transfer Objects): Separação clara entre os modelos de persistência da base de dados e os dados expostos nas rotas da API.
+## Decisões técnicas
 
-Validações Ativas (@Valid): Validação de dados de entrada na borda (como obrigatoriedade de campos, limites de caracteres e formato de e-mail).
+| Decisão | Por quê |
+|---|---|
+| `BigDecimal` para valores monetários | `Double` tem erro de arredondamento binário |
+| Preço e total calculados no servidor | O cliente da API não consegue alterar o valor do pedido |
+| Preço "congelado" em `OrderItem.unitPrice` | Mudanças futuras de preço não alteram pedidos antigos |
+| `@Transactional` na criação do pedido | Se um item falhar (ex.: sem estoque), nada é gravado (rollback) |
+| `@Version` em `Product` | Lock otimista: evita que duas vendas simultâneas corrompam o estoque |
+| `@EntityGraph` na listagem de pedidos | Evita o problema de N+1 queries |
+| `open-in-view=false` | Nenhuma query escondida durante a serialização do JSON |
+| Injeção por construtor | Dependências `final`, explícitas e fáceis de mockar em testes |
+| `@Getter/@Setter` em vez de `@Data` nas entidades | `equals/hashCode/toString` do `@Data` causam problemas com relações JPA |
+| Credenciais via variável de ambiente | Nenhuma senha no código-fonte |
 
-Tratamento Global de Erros (@RestControllerAdvice): Captura centralizada de exceções, devolvendo respostas HTTP padronizadas e limpas para o cliente.
+## Como executar
 
-Segurança de Credenciais: Configuração de base de dados isolada através de Variáveis de Ambiente (DB_PASSWORD), evitando a exposição de senhas no código-fonte.
+Pré-requisitos: Java 21 e PostgreSQL rodando.
 
-⚙️ Como Executar o Projeto Localmente
-Pré-requisitos
-Ter o Java 21 instalado.
-
-Ter o Maven configurado.
-
-Ter uma instância do PostgreSQL a correr localmente.
-
-1. Configurar a Base de Dados
-Cria uma base de dados chamada erp_db no teu PostgreSQL:
-
-SQL
+```sql
 CREATE DATABASE erp_db;
-2. Configurar a Variável de Ambiente
-Define a variável de ambiente no teu sistema ou diretamente nas configurações de execução do teu IDE (como o IntelliJ IDEA):
+```
 
-Nome: DB_PASSWORD
+Variáveis de ambiente:
 
-Valor: A senha do teu utilizador do PostgreSQL.
+| Variável | Obrigatória | Padrão |
+|---|---|---|
+| `DB_PASSWORD` | sim | — |
+| `DB_USERNAME` | não | `postgres` |
+| `DB_URL` | não | `jdbc:postgresql://localhost:5432/erp_db` |
 
-3. Clonar e Executar
-Clona o repositório, abre-o no teu IDE preferido, certifica-te de que as dependências do Maven foram carregadas e executa a classe principal:SistemagerencialApplication.java
+```bash
+./mvnw spring-boot:run
+```
 
-📌 Endpoints Principais
-Clientes (/api/clients)
-GET /api/clients - Lista todos os clientes registados.
+## Testes
 
-POST /api/clients - Regista um novo cliente (com validação de dados).
+```bash
+./mvnw test
+```
+
+Não precisa de PostgreSQL: os testes usam H2 em memória.
+
+- `ProductTest`: unitário, regra de estoque.
+- `OrderServiceTest`: unitário com Mockito, cálculo de total, baixa de estoque e cenários de erro.
+- `SistemagerencialApplicationTests`: integração ponta a ponta via HTTP (MockMvc), incluindo rollback e códigos de erro.
+
+## Endpoints
+
+### Clientes: `/api/clients`
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/clients` | Lista clientes |
+| GET | `/api/clients/{id}` | Busca por ID |
+| POST | `/api/clients` | Cadastra (CPF/CNPJ único, 11 ou 14 dígitos) |
+
+```json
+{ "name": "Maria Silva", "cpfCnpj": "11122233344", "email": "maria@email.com", "phone": "11999999999" }
+```
+
+### Produtos: `/api/products`
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/products` | Lista produtos |
+| GET | `/api/products/{id}` | Busca por ID |
+| POST | `/api/products` | Cadastra |
+
+```json
+{ "nome": "Monitor", "descricao": "24 polegadas", "preco": 899.90, "quantidadeEstoque": 10 }
+```
+
+### Pedidos: `/api/orders`
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/orders` | Lista pedidos (mais recentes primeiro) |
+| GET | `/api/orders/{id}` | Busca por ID |
+| POST | `/api/orders` | Cria pedido, calcula total e baixa estoque |
+
+```json
+{ "clientId": 1, "items": [ { "productId": 1, "quantity": 2 } ] }
+```
+
+### Formato de erro
+
+```json
+{
+  "timestamp": "2026-01-15T10:00:00",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "Dados inválidos",
+  "path": "/api/clients",
+  "fieldErrors": { "cpfCnpj": "O CPF/CNPJ deve conter 11 ou 14 dígitos, apenas números" }
+}
+```
+
+| Status | Quando |
+|---|---|
+| 400 | Validação falhou ou JSON malformado |
+| 404 | Cliente, produto ou pedido não encontrado |
+| 409 | CPF/CNPJ duplicado ou conflito de concorrência |
+| 422 | Regra de negócio violada (ex.: estoque insuficiente) |
+| 500 | Erro inesperado (detalhes só no log do servidor) |
