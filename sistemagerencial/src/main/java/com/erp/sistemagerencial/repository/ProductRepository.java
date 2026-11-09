@@ -1,6 +1,6 @@
 package com.erp.sistemagerencial.repository;
 
-import com.erp.sistemagerencial.model.Product;
+import com.erp.sistemagerencial.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

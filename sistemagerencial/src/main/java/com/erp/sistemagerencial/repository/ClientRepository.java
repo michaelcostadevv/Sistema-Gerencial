@@ -1,14 +1,12 @@
 package com.erp.sistemagerencial.repository;
 
-import com.erp.sistemagerencial.model.Client;
+import com.erp.sistemagerencial.entity.Client;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-
 @Repository
 public interface ClientRepository extends JpaRepository<Client, Long> {
-    // Método customizado para buscar cliente pelo CPF/CNPJ caso a gente precise validar depois
-    Optional<Client> findByCpfCnpj(String cpfCnpj);
-}
 
+    // Spring Data gera a query a partir do nome do método: SELECT count(*) > 0 ... WHERE cpf_cnpj = ?
+    boolean existsByCpfCnpj(String cpfCnpj);
+}

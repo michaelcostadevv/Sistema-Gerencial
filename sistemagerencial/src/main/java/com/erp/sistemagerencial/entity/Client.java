@@ -1,15 +1,17 @@
-package com.erp.sistemagerencial.model;
+package com.erp.sistemagerencial.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+// @Getter/@Setter em vez de @Data: o @Data gera equals/hashCode/toString com todos os campos,
+// o que em entidades JPA pode causar loops infinitos e carregar relações LAZY sem querer.
 @Entity
 @Table(name = "tb_clients")
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
-@AllArgsConstructor
 public class Client {
 
     @Id
